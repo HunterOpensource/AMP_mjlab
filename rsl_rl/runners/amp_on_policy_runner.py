@@ -170,6 +170,8 @@ class AmpOnPolicyRunner:
             anchor_name=train_cfg["amp_anchor_name"],
             all_body_names=all_body_names,
             device=self.device,
+            joint_names=robot_entity.joint_names,
+            expected_fps=1.0 / self.env.unwrapped.step_dt,
         )
         amp_normalizer = Normalizer(amp_data.observation_dim)
         discriminator = Discriminator(

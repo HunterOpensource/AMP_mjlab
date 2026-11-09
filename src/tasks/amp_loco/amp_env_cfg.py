@@ -23,7 +23,6 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sensor import GridPatternCfg, ObjRef, RayCastSensorCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
-from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.terrains import TerrainEntityCfg
 from mjlab.terrains.config import ROUGH_TERRAINS_CFG
@@ -32,7 +31,7 @@ from mjlab.viewer import ViewerConfig
 
 import src.tasks.amp_loco.mdp as mdp
 from src.tasks.amp_loco.mdp.terrain import RANDOM_ROUGH_TERRAINS_CFG
-from src.tasks.velocity.mdp.curriculums import terrain_levels_vel, commands_vel
+from src.tasks.amp_loco.mdp.curriculums import terrain_levels_vel, commands_vel
 
 def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create AMP Locomotion task configuration."""

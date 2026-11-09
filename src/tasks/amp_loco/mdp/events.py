@@ -51,6 +51,9 @@ class MotionResetManager:
             feet_indexes=0,
             device=str(env.device),
             recovery_dir=recovery_dir,
+            body_names=env.scene["robot"].body_names,
+            joint_names=env.scene["robot"].joint_names,
+            expected_fps=1.0 / env.step_dt,
         )
 
         self.walk_run_frames[motion_dir] = self._concat_frames(loader.motion_data)

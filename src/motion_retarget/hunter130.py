@@ -18,7 +18,6 @@ from scipy.spatial.transform import Rotation
 
 from src import SRC_PATH
 
-G1_XML = SRC_PATH / "assets/robots/unitree_g1/xmls/g1.xml"
 HUNTER_XML = SRC_PATH / "assets/robots/hunter130/assets/hunter130.xml"
 
 
@@ -46,9 +45,9 @@ class RetargetCfg:
 
 
 class Retargeter:
-    def __init__(self, cfg: RetargetCfg | None = None):
+    def __init__(self, cfg: RetargetCfg | None = None, *, source_xml: Path):
         self.cfg = cfg or RetargetCfg()
-        self.source = mujoco.MjModel.from_xml_path(str(G1_XML))
+        self.source = mujoco.MjModel.from_xml_path(str(source_xml))
         self.model = mujoco.MjModel.from_xml_path(str(HUNTER_XML))
         self.sd = mujoco.MjData(self.source)
         self.data = mujoco.MjData(self.model)

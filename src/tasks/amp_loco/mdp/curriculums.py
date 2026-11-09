@@ -1,3 +1,5 @@
+"""Velocity-command and terrain curricula used by Hunter130 AMP tasks."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict, cast
@@ -7,7 +9,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
-from .velocity_command import UniformVelocityCommandCfg
+from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -20,11 +22,6 @@ class VelocityStage(TypedDict):
   lin_vel_x: tuple[float, float] | None
   lin_vel_y: tuple[float, float] | None
   ang_vel_z: tuple[float, float] | None
-
-
-class RewardWeightStage(TypedDict):
-  step: int
-  weight: float
 
 
 def terrain_levels_vel(
@@ -82,26 +79,4 @@ def commands_vel(
         cfg.ranges.lin_vel_y = stage["lin_vel_y"]
       if "ang_vel_z" in stage and stage["ang_vel_z"] is not None:
         cfg.ranges.ang_vel_z = stage["ang_vel_z"]
-  return {
-    # "lin_vel_x_min": torch.tensor(cfg.ranges.lin_vel_x[0]),
-    # "lin_vel_x_max": torch.tensor(cfg.ranges.lin_vel_x[1]),
-    # "lin_vel_y_min": torch.tensor(cfg.ranges.lin_vel_y[0]),
-    # "lin_vel_y_max": torch.tensor(cfg.ranges.lin_vel_y[1]),
-    # "ang_vel_z_min": torch.tensor(cfg.ranges.ang_vel_z[0]),
-    # "ang_vel_z_max": torch.tensor(cfg.ranges.ang_vel_z[1]),
-  }
-
-
-def reward_weight(
-  env: ManagerBasedRlEnv,
-  env_ids: torch.Tensor,
-  reward_name: str,
-  weight_stages: list[RewardWeightStage],
-) -> torch.Tensor:
-  """Update a reward term's weight based on training step stages."""
-  del env_ids  # Unused.
-  reward_term_cfg = env.reward_manager.get_term_cfg(reward_name)
-  for stage in weight_stages:
-    if env.common_step_counter > stage["step"]:
-      reward_term_cfg.weight = stage["weight"]
-  return torch.tensor([reward_term_cfg.weight])
+  return {}

@@ -6,6 +6,7 @@ import torch
 from collections.abc import Sequence
 from dataclasses import MISSING
 from typing import TYPE_CHECKING
+from rsl_rl.utils.motion_validation import validate_motion
 
 
 class MotionLoader:
@@ -17,7 +18,11 @@ class MotionLoader:
         feet_indexes: int,
         device: str = "cpu",
         recovery_dir: str | None = None,
+        body_names: Sequence[str] | None = None,
+        joint_names: Sequence[str] | None = None,
+        expected_fps: float | None = None,
     ):
+        self._validation = (body_names, joint_names, expected_fps)
         # 存储所有运动数据的列表
         self.motion_data: list[dict] = []
         # 存储所有恢复数据的列表
@@ -52,19 +57,22 @@ class MotionLoader:
         self.time_step_total = self._dof_pos.shape[0]
         self.motion_total_time = self.time_step_total / self.fps
 
-    @staticmethod
-    def _load_dir(dir_path: str, device: str) -> list[dict]:
+    def _load_dir(self, dir_path: str, device: str) -> list[dict]:
         """从目录中加载所有 .npz 文件并返回运动数据列表。"""
-        assert os.path.isdir(dir_path), f"Not a directory: {dir_path}"
+        if not os.path.isdir(dir_path):
+            raise FileNotFoundError(f"Motion directory missing: {dir_path}. Prepare motion data first.")
         result = []
         for filename in sorted(os.listdir(dir_path)):
             if not filename.endswith(".npz"):
                 continue
             motion_name = os.path.splitext(filename)[0]
-            data = np.load(os.path.join(dir_path, filename))
+            path = os.path.join(dir_path, filename)
+            with np.load(path) as archive:
+                data = dict(archive)
+            fps = validate_motion(data, path, *self._validation)
             result.append({
                 "motion_name": motion_name,
-                "fps": data["fps"],
+                "fps": fps,
                 "dof_pos": torch.tensor(data["joint_pos"], dtype=torch.float32, device=device),
                 "dof_vel": torch.tensor(data["joint_vel"], dtype=torch.float32, device=device),
                 "body_pos_w": torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device),
