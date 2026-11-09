@@ -2,142 +2,155 @@
 
 [中文 README](README_zh.md)
 
-Deployment integration code is in [ccrpRepo/wbc_fsm](https://github.com/ccrpRepo/wbc_fsm), under `MJAmp State`.
+Hunter130 AMP training based on [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab),
+using mjlab and the included rsl_rl AMP fork. One 25-joint policy learns locomotion,
+velocity tracking and fall recovery, with ONNX export support.
 
-G1 AMP motion control project built on top of mjlab + rsl_rl.
+## Installation
 
-Key features of this repository:
-
-- A single policy learns both locomotion (walk/run) and recovery (fall-and-get-up)
-- AMP discriminator regularizes motion style and priors
-- Training and deployment pipelines are consistent, with direct ONNX policy export support
-
-## Core Idea
-
-Instead of training separate policies for locomotion and recovery and switching between them, this project learns both capabilities in one unified policy.
-
-Implementation highlights:
-
-- Motion data split:
-  - Walk/Run data: `src/assets/motions/g1/amp/WalkandRun`
-  - Recovery data: `src/assets/motions/g1/amp/Recovery`
-- Delayed termination/reset:
-  - A subset of environments does not reset immediately after termination
-  - These environments receive a recovery window and reset states sampled from recovery clips
-- Unified AMP training:
-  - One actor-critic + One AMP discriminator
-  - Velocity tracking, perturbation robustness, and recovery are learned together
-
-This reduces discontinuities caused by policy switching and yields more consistent behavior.
-
-## Requirements
-
-- Linux
-- Python 3.11 (recommended)
-- Working MuJoCo and GPU driver setup
-
-## Quick Start
-
-### 1. Install
+Requires Linux, Python 3.12 and a working NVIDIA GPU / driver setup.
 
 ```bash
-conda activate mjlab
+git clone https://github.com/HunterOpensource/AMP_mjlab.git
 cd AMP_mjlab
+# Skip creation if the mjlab environment already exists.
+conda create -n mjlab python=3.12 -y
+conda activate mjlab
 python -m pip install -e .
+python -m pip install -e ./rsl_rl
+python scripts/apply_mjlab_patch.py
+python scripts/apply_mjlab_patch.py --check
 ```
 
-### 2. Apply mjlab Patch (Optional)
+Install in this order. The local AMP fork reports version `2.3.1`, while mjlab
+requires `rsl-rl-lib==5.0.1`, so pip may report a dependency conflict when installing
+the fork. This is a known integration limitation; training requires the local AMP runner.
 
-If you do not apply this patch, remove `history_ordering` configuration from the code.
-
-What this patch does:
-
-- It adds an option for how observation history is flattened: by time (`time`) or by term (`term`).
-- Default mjlab behavior supports only `term` ordering.
-
-Patch file:
-
-- `mjlab_patch/mjlab/managers/observation_manager.py`
-
-Example command:
-
-```bash
-cp mjlab_patch/mjlab/managers/observation_manager.py \
-  /home/crp/miniconda3/envs/mjlab/lib/python3.11/site-packages/mjlab/managers/observation_manager.py
-```
-
-### 3. List Available Tasks
-
-```bash
-python scripts/list_envs.py --keyword AMP
-```
-
-Main tasks:
-
-- `Unitree-G1-AMP-Rough`
-- `Unitree-G1-AMP-Flat`
+**The mjlab patch is required** for `history_ordering="time"` in the training
+configuration. The helper locates mjlab 1.2.0 in the active Python environment,
+backs up the original observation manager and installs the patch. After
+reinstalling mjlab, reinstall the local rsl_rl fork and reapply the patch.
+The patch only supports mjlab 1.2.0.
 
 ## Training
 
-```bash
-python scripts/train.py Unitree-G1-AMP-Flat --env.scene.num-envs=4096
-```
-
-Logs are saved by default to:
-
-- `logs/rsl_rl/g1_amp_locomotion/<time_stamp_run>/`
-
-## Training Curve Note (Important)
-
-- Around `2w` iterations (about 20k), the policy often suddenly learns fall-recovery behavior.
-- As a result, multiple metrics in `logs` may show abrupt jumps. This is expected and not necessarily a training failure.
-
-![Training log transition example](logs.png)
-
-## Evaluation and Visualization
-
-Replay with a trained checkpoint:
+Run from the repository root:
 
 ```bash
-python scripts/play.py Unitree-G1-AMP-Rough \
-  --checkpoint-file logs/rsl_rl/g1_amp_locomotion/<run_dir>/model_<iter>.pt
+python scripts/list_envs.py --keyword Hunter130
+python scripts/train.py Hunter130-AMP-Flat \
+  --env.scene.num-envs=4096 --agent.run-name=hunter130_baseline
 ```
 
-Note: ONNX export is enabled by default in both training and play workflows.
-
-## Motion Data Preparation
-
-CSV-to-NPZ conversion script:
+For rough terrain:
 
 ```bash
-python scripts/csv_to_npz.py --help
+python scripts/train.py Hunter130-AMP-Rough \
+  --env.scene.num-envs=4096 --agent.run-name=hunter130_rough
 ```
 
-Recommended data layout:
+Reduce `--env.scene.num-envs` if GPU memory is limited. Logs, checkpoints and
+exported policies are saved to `logs/rsl_rl/hunter130_amp_baseline/<run_dir>/`.
 
-- Raw CSV: `motion_data_csv/amp`
-- Converted NPZ: `src/assets/motions/g1/amp/WalkandRun` and `src/assets/motions/g1/amp/Recovery`
+Replay a trained policy with the matching Flat / Rough task:
 
-If valid NPZ files exist in these folders, training config loads them automatically.
+```bash
+python scripts/play.py Hunter130-AMP-Flat \
+  --checkpoint-file logs/rsl_rl/hunter130_amp_baseline/<run_dir>/model_<iter>.pt
+```
 
-## Repository Structure
+## Model and motion data
 
-- `src/tasks/amp_loco`: AMP locomotion/recovery task implementation
-- `src/tasks/amp_loco/config/g1`: G1 task registration, env configs, RL configs
-- `src/tasks/amp_loco/mdp`: rewards, observations, events, termination logic
-- `scripts/train.py`: training entry point
-- `scripts/play.py`: playback entry point
-- `scripts/csv_to_npz.py`: motion data conversion tool
-- `mjlab_patch`: required local patch for mjlab
+- `src/assets/robots/hunter130/`: 25-joint MuJoCo model, 26 STL meshes, motor parameters and actuator configuration.
+- `src/assets/motions/hunter130/amp_baseline/WalkandRun/`: 17 locomotion clips.
+- `src/assets/motions/hunter130/amp_baseline/Recovery/`: 1 fall-recovery clip.
+- `src/assets/motions/hunter130/amp_baseline/manifest.json`: provenance, model/motion hashes, retarget settings and quality statistics.
 
-## Highlights
+All 18 clips are bundled: 9,992 frames at 50 Hz. Both reset initialization and the
+AMP discriminator use this baseline. Training requires no CSV conversion,
+retargeting or external SuperMimic data. Delayed resets give fallen environments
+a recovery window so one policy can learn locomotion and getting up.
 
-- One policy unifies walk/run and recovery skills
-- AMP + velocity objective jointly optimize style and task performance
-- Delayed reset with recovery sampling explicitly improves recovery ability
-- End-to-end pipeline supports ONNX export for deployment
+AMP sampling, joint targets and the fall-height threshold match the successfully
+trained revision `8a29d4f`: batches cycle through sorted clips, sampling frames
+within one clip per batch and repeating the last frame for terminal pairs.
+Standard `JointPositionActionCfg` computes targets as the default pose plus scaled
+actions. Root height below `0.35 m` triggers the height termination condition;
+recovery environments still use delayed resets.
+
+The G1 model, original CSV/NPZ data and this repository's G1 task registrations
+have been removed from the current tree. They remain available in Git history
+and the upstream repository. Other robot tasks bundled with the mjlab dependency
+are unaffected. The optional SuperMimic/LAFAN set at
+`src/assets/motions/hunter130/amp/` remains ignored and is not used by default.
+Logs, checkpoints, caches and intermediate conversions do not need to be committed.
+
+The six scripts cover training, policy playback, task listing, patch installation,
+baseline retargeting and motion review. The old standalone velocity task has been
+removed; AMP's velocity-command and terrain curricula live in
+`src/tasks/amp_loco/mdp/curriculums.py`.
+
+## Record each reference motion
+
+```bash
+conda activate mjlab
+python -m pip install Pillow imageio-ffmpeg
+python scripts/render_hunter130_motions.py --output logs/motion_review/hunter130
+```
+
+Open `index.html` in the output directory to review all 18 clips as dual-view MP4s
+with timeline images. Videos are 1280×720 at 50 fps and original speed; the left
+foot is blue and the right foot orange. Per-frame audit results are summarized in
+`audit.json`. Playback sets reference poses without running a policy or stepping
+the dynamics. The output lives under Git-ignored `logs/`.
+
+Use `--clips <clip_stem>` to select clips, or `--max-frames 100` for a short preview.
+If EGL selects Mesa software rendering, prefix the command with
+`__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json`
+to select NVIDIA, provided that driver file exists on your system.
+
+## Optional: reproduce retargeting
+
+The original G1 motions come from upstream revision
+`6c7a2947fccc973e4af8e6d90e550400f1b6fcfc`. Bounded whole-body inverse kinematics
+with contact constraints maps them to Hunter130, then recomputes target poses
+and velocities. Clip names, frame counts, sampling rate and root orientations are preserved.
+
+Only regeneration requires an external checkout of the original G1 repository:
+
+```bash
+git clone https://github.com/ccrpRepo/AMP_mjlab.git ../AMP_mjlab_g1_source
+git -C ../AMP_mjlab_g1_source checkout --detach 6c7a2947fccc973e4af8e6d90e550400f1b6fcfc
+python scripts/retarget_g1_to_hunter130.py \
+  --source-repo ../AMP_mjlab_g1_source \
+  --output logs/retargeted_baseline
+```
+
+The manifest's `retarget_code_revision` locates the archived generator used for
+the bundled data; `retarget_code_sha256` records its generation-time hash.
+Later changes to the external source-path interface did not rewrite the NPZ files.
+
+Retargeting is kinematic and does not guarantee dynamic feasibility in every
+frame. Mean foot-target error is about 2.65 mm for locomotion and 6.31 mm for
+recovery; maximum recovery self-penetration is about 7.1 mm.
+
+## Validation
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Default checks cover the bundled model, motion integrity, AMP features and task
+configuration without G1 files. With an external source checkout, enable source
+provenance, IK Jacobian and GPU action/reset checks:
+
+```bash
+HUNTER130_G1_SOURCE=../AMP_mjlab_g1_source HUNTER130_TEST_GPU=1 \
+  python -m unittest discover -s tests -v
+```
 
 ## Acknowledgements
 
-- Thanks to [unitreerobotics/unitree_rl_mjlab](https://github.com/unitreerobotics/unitree_rl_mjlab) for open-sourcing their work and inspiration.
-- Thanks to [Open-X-Humanoid/TienKung-Lab](https://github.com/Open-X-Humanoid/TienKung-Lab); the rsl_rl AMP part in this project references their implementation.
+- [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab): original AMP framework and baseline motions.
+- [unitreerobotics/unitree_rl_mjlab](https://github.com/unitreerobotics/unitree_rl_mjlab): open-source implementation and inspiration.
+- [Open-X-Humanoid/TienKung-Lab](https://github.com/Open-X-Humanoid/TienKung-Lab): reference for the rsl_rl AMP implementation.

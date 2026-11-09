@@ -2,146 +2,143 @@
 
 [English README](README.md)
 
-部署集成代码位于 [ccrpRepo/wbc_fsm](https://github.com/ccrpRepo/wbc_fsm) 项目中的 `MJAmp State`。
+基于 [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab) 的 Hunter130 AMP 训练仓库，使用 mjlab + 本地 rsl_rl AMP 分支。
+同一个 25 关节策略学习走跑、速度跟踪与跌倒恢复，并支持导出 ONNX。
 
-基于 mjlab + rsl_rl 的 G1 AMP 运动控制项目。
+## 安装
 
-本项目的核心特点是：
-
-- 使用同一个 policy 同时学习 locomotion（走/跑）与 recovery（跌倒恢复）
-- 通过 AMP 判别器约束动作风格与运动先验
-- 在训练与导出链路中保持一致，支持直接导出 ONNX policy
-
-## 核心思路
-
-传统做法常把“走跑策略”和“恢复策略”分开训练并做切换；本项目将两类能力放入一个策略中统一学习。
-
-实现要点：
-
-- 运动数据分组：
-	- Walk/Run 数据目录：`src/assets/motions/g1/amp/WalkandRun`
-	- Recovery 数据目录：`src/assets/motions/g1/amp/Recovery`
-- 延迟重置机制（Delayed Termination）：
-	- 一部分环境在触发终止后不立即 reset，而是给定恢复窗口
-	- 该子集环境优先从 Recovery 片段采样 reset 状态
-- 统一 AMP 训练：
-	- 单一 actor-critic + 单一 AMP discriminator
-	- 在同一训练过程中学习速度跟踪、抗扰动与恢复能力
-
-这样可以减少策略切换带来的状态不连续问题，得到更一致的行为。
-
-## 环境要求
-
-- Linux
-- Python 3.11（建议）
-- 已可用的 MuJoCo / GPU 驱动环境
-
-## 快速开始
-
-### 1. 安装仓库
+要求 Linux、Python 3.12 和可用的 NVIDIA GPU / 驱动。
 
 ```bash
-conda activate mjlab
+git clone https://github.com/HunterOpensource/AMP_mjlab.git
 cd AMP_mjlab
+# 已有 mjlab 环境可跳过创建。
+conda create -n mjlab python=3.12 -y
+conda activate mjlab
 python -m pip install -e .
-cd rsl_rl
-python -m pip install -e .
+python -m pip install -e ./rsl_rl
+python scripts/apply_mjlab_patch.py
+python scripts/apply_mjlab_patch.py --check
 ```
 
-### 2. 应用 mjlab 补丁（可选）
+请按此顺序安装。仓库内的 AMP 版 `rsl_rl` 版本号为 `2.3.1`，而 mjlab 的依赖元数据要求
+`rsl-rl-lib==5.0.1`，所以安装本地分支时 pip 可能提示依赖冲突。这是当前集成方式的已知限制；
+训练需要本地分支提供的 AMP runner。
 
-如果不打这个补丁，则需要在代码中去掉 `history_ordering` 配置。
-
-补丁作用说明：
-
-- 增加了历史观测的展开方式选项，可选择按时间维(`time`)或按观测项(`term`)展开。
-- mjlab 默认仅支持按 `term` 展开。
-
-补丁文件：
-
-- `mjlab_patch/mjlab/managers/observation_manager.py`
-
-示例覆盖命令：
-
-```bash
-cp mjlab_patch/mjlab/managers/observation_manager.py \
-	/home/crp/miniconda3/envs/mjlab/lib/python3.11/site-packages/mjlab/managers/observation_manager.py
-```
-
-### 3. 查看可用任务
-
-```bash
-python scripts/list_envs.py --keyword AMP
-```
-
-主要任务：
-
-- `Unitree-G1-AMP-Rough`
-- `Unitree-G1-AMP-Flat`
+**mjlab 补丁是必需的**：训练配置使用 `history_ordering="time"`，按时间展开历史观测。
+脚本会自动找到当前 Python 环境中的 mjlab 1.2.0，备份并替换观测管理器，不依赖固定的 conda 路径。
+重新安装 mjlab 后，需要重新安装本地 `rsl_rl` 分支并应用补丁；补丁只支持 mjlab 1.2.0。
 
 ## 训练
 
+在仓库根目录执行：
 
 ```bash
-python scripts/train.py Unitree-G1-AMP-Flat --env.scene.num-envs=4096
+python scripts/list_envs.py --keyword Hunter130
+python scripts/train.py Hunter130-AMP-Flat \
+  --env.scene.num-envs=4096 --agent.run-name=hunter130_baseline
 ```
 
-
-日志默认在：
-
-- `logs/rsl_rl/g1_amp_locomotion/<time_stamp_run>/`
-
-## 训练曲线说明（重要）
-
-- 在约 `2w` 轮（约 20k iterations）附近，策略通常会突然学会“跌倒后恢复”行为。
-- 对应地，`logs` 中多个指标会出现明显突变（阶跃式变化），这是正常现象，不一定是训练异常。
-
-![训练日志突变示例](logs.png)
-
-## 评估与可视化
-
-使用已训练权重回放：
+复杂地形训练：
 
 ```bash
-python scripts/play.py Unitree-G1-AMP-Rough \
-	--checkpoint-file logs/rsl_rl/g1_amp_locomotion/<run_dir>/model_<iter>.pt 
+python scripts/train.py Hunter130-AMP-Rough \
+  --env.scene.num-envs=4096 --agent.run-name=hunter130_rough
 ```
 
-说明：训练与回放阶段都支持 ONNX 导出（默认开启）。
+显存不足时减小 `--env.scene.num-envs`。日志、检查点和导出的策略保存在
+`logs/rsl_rl/hunter130_amp_baseline/<run_dir>/`。
 
-## 运动数据准备
-
-仓库提供 CSV 到 NPZ 的转换脚本：
+回放已训练的策略：
 
 ```bash
-python scripts/csv_to_npz.py --help
+python scripts/play.py Hunter130-AMP-Flat \
+  --checkpoint-file logs/rsl_rl/hunter130_amp_baseline/<run_dir>/model_<iter>.pt
 ```
 
-推荐目录组织：
+回放任务应与训练时的 Flat / Rough 类型一致。
 
-- 原始 CSV：`motion_data_csv/amp`
-- 转换后 NPZ：`src/assets/motions/g1/amp/WalkandRun` 与 `src/assets/motions/g1/amp/Recovery`
+## 模型与训练数据
 
-只要上述目录中存在可用 NPZ，训练配置会自动加载。
+- `src/assets/robots/hunter130/`：25 关节 MuJoCo 模型、26 个 STL 网格、电机参数及执行器配置。
+- `src/assets/motions/hunter130/amp_baseline/WalkandRun/`：17 段走跑动作。
+- `src/assets/motions/hunter130/amp_baseline/Recovery/`：1 段跌倒恢复动作。
+- `src/assets/motions/hunter130/amp_baseline/manifest.json`：来源、模型和动作校验和、重定向参数与质量统计。
 
-## 目录说明
+18 段动作共 9,992 帧、50 Hz，随仓库直接提供。默认训练同时用它们初始化机器人状态、
+提供 AMP 判别器参考；训练不需要重新转换 CSV、运行重定向或下载 SuperMimic 数据。
+延迟重置机制给部分跌倒环境留出恢复窗口，使单个策略学习走跑和起身。
 
-- `src/tasks/amp_loco`：AMP locomotion/recovery 任务实现
-- `src/tasks/amp_loco/config/g1`：G1 任务注册、环境与 RL 配置
-- `src/tasks/amp_loco/mdp`：奖励、观测、事件、终止逻辑
-- `scripts/train.py`：训练入口
-- `scripts/play.py`：回放入口
-- `scripts/csv_to_npz.py`：动作数据转换工具
-- `mjlab_patch`：依赖的 mjlab 本地补丁
+AMP 采样、关节目标处理和跌倒高度阈值对齐成功训练版本 `8a29d4f`：按文件排序逐批循环
+选择一个片段，在片段内随机取帧；抽到末帧时下一帧仍为末帧。关节目标使用普通
+`JointPositionActionCfg`，按默认姿态加动作缩放计算；根部高度低于 `0.35 m` 触发高度终止条件，
+恢复环境仍适用延迟重置。
 
-## 项目亮点总结
+G1 模型、原始 CSV / NPZ 和本仓库的 G1 任务注册已从当前工作树移除。
+原始资料仍保留在 Git 历史和上游仓库中；mjlab 依赖包自身包含的其他机器人任务不受此改动影响。
+可选的 SuperMimic/LAFAN 对比集 `src/assets/motions/hunter130/amp/` 仍被 Git 忽略，默认训练不使用它。
+日志、检查点、缓存和中间转换文件也不需要提交。
 
-- 单一策略统一覆盖走跑与跌倒恢复
-- AMP + 速度任务联合优化，兼顾风格与任务性能
-- 延迟重置与 recovery 采样机制，显式强化恢复能力
-- 训练到部署链路完整，支持 ONNX 导出
+仓库保留训练、策略回放、环境列表、补丁安装、基准动作重定向和视频检查六个脚本。
+旧的独立 velocity 任务已移除，AMP 使用的速度与地形课程学习函数位于
+`src/tasks/amp_loco/mdp/curriculums.py`。
+
+## 逐段录制参考动作
+
+```bash
+conda activate mjlab
+python -m pip install Pillow imageio-ffmpeg
+python scripts/render_hunter130_motions.py --output logs/motion_review/hunter130
+```
+
+用浏览器打开输出目录的 `index.html`，即可逐段查看全部 18 段动作的双视角 MP4
+和时间线截图。视频为 1280×720、50 fps、原速，蓝色为左脚，橙色为右脚；
+逐帧检查结果保存在 `audit.json`。这会直接回放参考姿态，不运行训练策略或动力学步进。
+视频输出位于被 Git 忽略的 `logs/` 下。
+
+可用 `--clips <片段名，不含扩展名>` 选择片段；`--max-frames 100` 仅用于短预览。
+如果本机 EGL 选择了 Mesa 软件渲染，可在命令前添加
+`__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json`
+选择 NVIDIA 驱动，前提是该驱动文件存在。
+
+## 可选：重现重定向
+
+基准数据来自上游提交 `6c7a2947fccc973e4af8e6d90e550400f1b6fcfc` 中的 G1 动作，
+通过带关节限位和接触约束的全身逆运动学转换为 Hunter130，并重新计算目标机器人的位姿、速度。
+保留片段名称、帧数、采样率与根部朝向。
+
+仅重新生成数据时，需要准备外部的原始 G1 仓库：
+
+```bash
+git clone https://github.com/ccrpRepo/AMP_mjlab.git ../AMP_mjlab_g1_source
+git -C ../AMP_mjlab_g1_source checkout --detach 6c7a2947fccc973e4af8e6d90e550400f1b6fcfc
+python scripts/retarget_g1_to_hunter130.py \
+  --source-repo ../AMP_mjlab_g1_source \
+  --output logs/retargeted_baseline
+```
+
+`manifest.json` 的 `retarget_code_revision` 指向已有基准数据生成代码的存档提交，
+`retarget_code_sha256` 记录生成时的代码；之后的外部来源路径接口调整没有改写已有 NPZ。
+
+重定向是运动学处理，不保证每帧动态可执行。已有基准集的平均足端目标误差约为
+走跑 2.65 mm、恢复 6.31 mm，恢复动作最大自穿透约 7.1 mm。
+
+## 检查
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+默认校验随仓库提供的模型、动作完整性、AMP 特征及任务配置，不需要 G1 文件。
+准备好外部来源后，可同时启用来源追溯、IK 雅可比和 GPU 动作 / 重置检查：
+
+```bash
+HUNTER130_G1_SOURCE=../AMP_mjlab_g1_source HUNTER130_TEST_GPU=1 \
+  python -m unittest discover -s tests -v
+```
 
 ## 致谢
 
-- 感谢 [unitreerobotics/unitree_rl_mjlab](https://github.com/unitreerobotics/unitree_rl_mjlab) 项目的开源工作与启发。
-- 感谢 [Open-X-Humanoid/TienKung-Lab](https://github.com/Open-X-Humanoid/TienKung-Lab)，本项目在 rsl_rl 的 AMP 部分参考了该实现。
+- [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab)：原始 AMP 训练框架与基准动作。
+- [unitreerobotics/unitree_rl_mjlab](https://github.com/unitreerobotics/unitree_rl_mjlab)：开源实现与启发。
+- [Open-X-Humanoid/TienKung-Lab](https://github.com/Open-X-Humanoid/TienKung-Lab)：本项目 rsl_rl AMP 实现的参考。
