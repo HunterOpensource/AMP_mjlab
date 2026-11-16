@@ -1,0 +1,15 @@
+{
+  "method": "user_specified",
+  "source": "Hunter180 motor parameter table supplied by the user in this session",
+  "supersedes": "Initial Hunter130 inertia-scaled estimates",
+  "units": {
+    "stiffness": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "armature": "kg*m^2",
+    "effort": "N*m (symmetric positive/negative limit)",
+    "action_scale": "rad per policy action"
+  },
+  "armature": "0.10 for all 23 joints",
+  "effort": "User-specified training torque limits; the source URDF retains its hardware specifications",
+  "motors_sha256": "0b463826c842e40baf9d5275bb541ce26c7e18598784dabb4f797e7b84090ff6"
+}

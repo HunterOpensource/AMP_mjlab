@@ -1,0 +1,37 @@
+{
+  "source_xml": "/home/milkyway/GMR/assets/hunter180/hunter180.xml",
+  "source_xml_sha256": "b7ebff55c93a9b520e5453d4c2d29953149a48e73aa448b2b2491b89a52583ae",
+  "source_urdf": "/home/milkyway/opensource/hunter130_train/legged_lab/assets/hunter180/urdf/hunter180.urdf",
+  "source_urdf_sha256": "fb90455366d843ed915f72fceadb78b9ca7d68a5d7fa4fa8c31bc10a7ccc84c1",
+  "adaptations": [
+    "Relative mesh paths; unchanged kinematics, masses and inertias",
+    "Pelvis IMU and sole-center foot sites",
+    "Exclude connected and grandparent CAD housings from self contact"
+  ],
+  "mesh_sha256": {
+    "left_ankle_pitch_link.STL": "b65ec0f09f4467d9ba09e0bed539311b50b255c3506cd26212387cc5dae2407b",
+    "left_ankle_roll_link.STL": "bb3ffe61969276d2b67e902af42735e7f6956c13a14c0d3bc7241e7ebeadc167",
+    "left_elbow_link.STL": "2155328aaaf3d59a4c605625a07db85596b0ca12bdb5b76c03cd819e0076af60",
+    "left_hip_pitch_link.STL": "22c8ab65fb5c5368a13206eb4a9f71edee6cee393c2bfea4d232fb04c2d61e94",
+    "left_hip_roll_link.STL": "4196966f5f2d62889e61d7a1c7e5c9b6eef37aa2cc6c0b60c92993b66ea1d451",
+    "left_hip_yaw_link.STL": "ee293e083c12df3b86140ed8f7a4805e22c58a1d1a71f63c7c14c7bdc7b3b61f",
+    "left_knee_link.STL": "041458389f06464b087d4604b0a8a14d5c7b91413f3d622d7bf191c96fd30fa6",
+    "left_shoulder_pitch_link.STL": "4e7fa9d91a802e9ad65bad8b6334035233862aa0e529dc5d8807e617d40ada62",
+    "left_shoulder_roll_link.STL": "cd3ffafda6fb94c45a6bd9bfa82c4eca96dc4b7c716fbde0e928aafac76bba7d",
+    "left_shoulder_yaw_link.STL": "1029d86a099d8ac3c74bfb7d65f16afb8362ea8e9c9cdb7753b0de68258e65f5",
+    "pelvis.STL": "74123b971edbc57aeafc95b6b3dd78ab7285b801ebc08166628a09b8b97248b6",
+    "right_ankle_pitch_link.STL": "20bf8e1a85bb2000042cd3dc7b003d9ac3830e0c506f4a32cf230186a7777c99",
+    "right_ankle_roll_link.STL": "d7db8ac4de54fda6fed9feb908061c45b912cfbec81e8356e432830c048c05d1",
+    "right_elbow_link.STL": "2c34fdabbef2abf4d448a0222f75ccdb45d783cee5a1fa837c555206078e6e9a",
+    "right_hip_pitch_link.STL": "78fd36a1814a72fd3fea2414794938dacc78fddd44cf82846163244ccc3f95dc",
+    "right_hip_roll_link.STL": "acddb127ed389fa12679a769f00dfd2d2d1e993eeb6de1ffe33f0755e065e02a",
+    "right_hip_yaw_link.STL": "8e1eb6d721692a4056c26c6c21cdd9d8bbe7598e48df95d4c20a8667a2dd21ac",
+    "right_knee_link.STL": "324c80239bf6f9961d054605ea485556087aa0e199ca90fb95ec9a474a4e72dc",
+    "right_shoulder_pitch_link.STL": "f6a31afa8cd26b03e9b5a4dbc9603bc122fdb82fb54e191a4909a6c7045cb60f",
+    "right_shoulder_roll_link.STL": "02290d054304c0ea075a115829b8a8654c0525369880341cb9d6de497acd285a",
+    "right_shoulder_yaw_link.STL": "68d67988abeec02a61aacc4090f3da0af403a1b4fbdb9a35e8d26f1927dcd68f",
+    "torso_link.STL": "b8916e672c6373423c40026cc7d2f1051a427dccdcd0cbe6dbdb9ffdd358a8b0",
+    "waist_roll_link.STL": "8b4ae0b5322b00705e1ee92d3eee9d60295faccfbd1bed3521b54e4516ce7a61",
+    "waist_yaw_link.STL": "2a88474ed337baa6302f3c0730aa1463d9ac7e26b2e93a9c4e61aa0750b9e8c7"
+  }
+}
