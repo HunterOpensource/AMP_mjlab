@@ -2,9 +2,10 @@
 
 [中文 README](README_zh.md)
 
-Hunter130 AMP training based on [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab),
-using mjlab and the included rsl_rl AMP fork. One 25-joint policy learns locomotion,
-velocity tracking and fall recovery, with ONNX export support.
+Hunter130 / Hunter180 AMP training based on [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab),
+using mjlab and the included rsl_rl AMP fork. Hunter130's 25-joint policy learns locomotion,
+velocity tracking and fall recovery. Hunter180 uses its own 23-joint model with locomotion and recovery references retargeted from Hunter130.
+Both support ONNX export.
 
 ## Installation
 
@@ -33,6 +34,93 @@ reinstalling mjlab, reinstall the local rsl_rl fork and reapply the patch.
 The patch only supports mjlab 1.2.0.
 
 ## Training
+
+### Hunter180 development branch
+
+`dev/hunter180` adds the model converted from the local Hunter180 URDF: 23 joints and approximately
+64.35 kg, preserving its joint axes, limits, masses and inertias. The model, 24 STL meshes,
+URDF and converted motions are bundled; training needs no external asset paths.
+
+```bash
+conda activate mjlab
+python scripts/list_envs.py --keyword Hunter180
+python scripts/train.py Hunter180-AMP-Flat \
+  --env.scene.num-envs=4096 --agent.run-name=hunter180_baseline
+```
+
+Use `Hunter180-AMP-Rough` for rough terrain and reduce the environment count if GPU
+memory is limited. Outputs go to `logs/rsl_rl/hunter180_amp_baseline/<run_dir>/`.
+For an initial smoke test and checkpoint playback:
+
+```bash
+python scripts/train.py Hunter180-AMP-Flat \
+  --env.scene.num-envs=64 --agent.max-iterations=3 \
+  --agent.run-name=hunter180_smoke --enable-nan-guard=True
+python scripts/play.py Hunter180-AMP-Flat \
+  --checkpoint-file logs/rsl_rl/hunter180_amp_baseline/<run_dir>/model_<iter>.pt
+```
+
+Motor parameters use the user-specified training table below. All 23 joints use
+`armature=0.10 kg·m²`. Torque limits are training limits from this table; the source
+URDF retains its original hardware specifications. Training applies the configured
+limits to both joints and actuators. Corresponding left/right joints share values.
+
+| Joint (left/right shared) | Kp (N·m/rad) | Kd (N·m·s/rad) | Armature (kg·m²) | Torque limit (N·m) | Action scale (rad) |
+|---|---:|---:|---:|---:|---:|
+| hip_pitch | 250 | 15 | 0.10 | ±400 | 0.3 |
+| hip_roll | 400 | 30 | 0.10 | ±400 | 0.3 |
+| hip_yaw | 200 | 10 | 0.10 | ±400 | 1.0 |
+| knee | 400 | 30 | 0.10 | ±400 | 0.3 |
+| ankle_pitch | 200 | 10 | 0.10 | ±200 | 0.7 |
+| ankle_roll | 200 | 10 | 0.10 | ±100 | 0.3 |
+| waist_yaw | 100 | 5 | 0.10 | ±300 | 1.0 |
+| waist_roll | 150 | 7.5 | 0.10 | ±150 | 1.0 |
+| waist_pitch | 150 | 7.5 | 0.10 | ±150 | 1.0 |
+| shoulder_pitch | 100 | 5 | 0.10 | ±150 | 0.5 |
+| shoulder_roll | 100 | 5 | 0.10 | ±150 | 0.5 |
+| shoulder_yaw | 100 | 5 | 0.10 | ±150 | 0.5 |
+| elbow | 50 | 5 | 0.10 | ±150 | 0.5 |
+
+Training reads `src/assets/robots/hunter180/assets/motors.json`; provenance and its
+checksum are recorded in `motor_parameters_source.json` in the same directory.
+These values replace the initial Hunter130 inertia-scaled estimates. The optional
+inertia estimator is for comparison and requires a separate output directory:
+
+```bash
+python scripts/prepare_hunter180_motors.py --output logs/hunter180_motor_estimates
+```
+
+All Hunter180 training data is retargeted from this repository's
+`src/assets/motions/hunter130/amp_baseline/`: 17 locomotion clips and one recovery
+clip, 9,992 frames at 50 Hz. Bounded whole-body IK with contact and self-collision
+constraints preserves clip names, frame counts, sampling rate and root orientations.
+Root/foot trajectories use the neutral sole-to-pelvis height ratio, and arm targets
+use target bone lengths. An elbow prior offset accounts for Hunter180's additional
+fixed rotation of approximately 90 degrees. The current Hunter180 model ends at the
+elbow housing, with no wrist/hand links, so arm endpoint targets use the actual housing.
+All target joint velocities, body poses and link-origin velocities are recomputed.
+Delayed resets remain enabled for fall recovery in training and playback.
+
+`src/assets/motions/hunter180/amp_baseline/manifest.json` records source/target model
+and clip hashes, solver settings and quality metrics. Training uses the bundled NPZ
+files. To regenerate or validate:
+
+```bash
+python scripts/retarget_hunter130_to_hunter180.py
+HUNTER180_TEST_GPU=1 python -m unittest discover -s tests -p test_hunter180.py -v
+```
+
+Partial diagnostic runs must use a separate output directory:
+
+```bash
+python scripts/retarget_hunter130_to_hunter180.py \
+  --clips walk_forward_loop_002__A022 --output logs/hunter180_retarget_preview
+```
+
+Retargeting is kinematic. A smoke test validates the training pipeline; it does not
+establish policy convergence or dynamic feasibility on hardware.
+
+### Hunter130
 
 Run from the repository root:
 
@@ -85,8 +173,9 @@ are unaffected. The optional SuperMimic/LAFAN set at
 `src/assets/motions/hunter130/amp/` remains ignored and is not used by default.
 Logs, checkpoints, caches and intermediate conversions do not need to be committed.
 
-The six scripts cover training, policy playback, task listing, patch installation,
-baseline retargeting and motion review. The old standalone velocity task has been
+The scripts cover training, policy playback, task listing, patch installation,
+Hunter130 baseline retargeting and motion review, plus optional Hunter180 motor estimation
+and Hunter130-to-Hunter180 motion retargeting. The old standalone velocity task has been
 removed; AMP's velocity-command and terrain curricula live in
 `src/tasks/amp_loco/mdp/curriculums.py`.
 

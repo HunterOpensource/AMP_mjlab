@@ -2,8 +2,8 @@
 
 [English README](README.md)
 
-基于 [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab) 的 Hunter130 AMP 训练仓库，使用 mjlab + 本地 rsl_rl AMP 分支。
-同一个 25 关节策略学习走跑、速度跟踪与跌倒恢复，并支持导出 ONNX。
+基于 [ccrpRepo/AMP_mjlab](https://github.com/ccrpRepo/AMP_mjlab) 的 Hunter130 / Hunter180 AMP 训练仓库，使用 mjlab + 本地 rsl_rl AMP 分支。
+Hunter130 的 25 关节策略学习走跑、速度跟踪与跌倒恢复；Hunter180 的 23 关节策略使用独立模型及从 Hunter130 重定向的走跑、恢复参考集。两者均支持导出 ONNX。
 
 ## 安装
 
@@ -30,6 +30,88 @@ python scripts/apply_mjlab_patch.py --check
 重新安装 mjlab 后，需要重新安装本地 `rsl_rl` 分支并应用补丁；补丁只支持 mjlab 1.2.0。
 
 ## 训练
+
+### Hunter180 开发分支
+
+开发分支为 `dev/hunter180`，使用本机 Hunter180 URDF 转换的模型（23 关节、约 64.35 kg），
+保留其关节轴、限位、质量和惯量。模型、24 个 STL、URDF 和转换后的动作均随仓库提供，
+正常训练不依赖外部模型或动作路径。
+
+```bash
+conda activate mjlab
+python scripts/list_envs.py --keyword Hunter180
+python scripts/train.py Hunter180-AMP-Flat \
+  --env.scene.num-envs=4096 --agent.run-name=hunter180_baseline
+```
+
+复杂地形任务为 `Hunter180-AMP-Rough`。显存不足时减小并行环境数。
+日志、检查点及 ONNX 位于 `logs/rsl_rl/hunter180_amp_baseline/<run_dir>/`。
+首次验证可先运行短训练：
+
+```bash
+python scripts/train.py Hunter180-AMP-Flat \
+  --env.scene.num-envs=64 --agent.max-iterations=3 \
+  --agent.run-name=hunter180_smoke --enable-nan-guard=True
+python scripts/play.py Hunter180-AMP-Flat \
+  --checkpoint-file logs/rsl_rl/hunter180_amp_baseline/<run_dir>/model_<iter>.pt
+```
+
+电机参数使用用户指定的训练参数表，23 个关节的 `armature` 均为 `0.10 kg·m²`。
+`effort` 为下表指定的训练扭矩限值；源 URDF 保留原始硬件规格，训练加载时会同步设置
+关节和执行器的扭矩限制。左右同名关节使用相同数值。
+
+| 关节（左右相同） | Kp (N·m/rad) | Kd (N·m·s/rad) | armature (kg·m²) | 扭矩限值 (N·m) | action_scale (rad) |
+|---|---:|---:|---:|---:|---:|
+| hip_pitch | 250 | 15 | 0.10 | ±400 | 0.3 |
+| hip_roll | 400 | 30 | 0.10 | ±400 | 0.3 |
+| hip_yaw | 200 | 10 | 0.10 | ±400 | 1.0 |
+| knee | 400 | 30 | 0.10 | ±400 | 0.3 |
+| ankle_pitch | 200 | 10 | 0.10 | ±200 | 0.7 |
+| ankle_roll | 200 | 10 | 0.10 | ±100 | 0.3 |
+| waist_yaw | 100 | 5 | 0.10 | ±300 | 1.0 |
+| waist_roll | 150 | 7.5 | 0.10 | ±150 | 1.0 |
+| waist_pitch | 150 | 7.5 | 0.10 | ±150 | 1.0 |
+| shoulder_pitch | 100 | 5 | 0.10 | ±150 | 0.5 |
+| shoulder_roll | 100 | 5 | 0.10 | ±150 | 0.5 |
+| shoulder_yaw | 100 | 5 | 0.10 | ±150 | 0.5 |
+| elbow | 50 | 5 | 0.10 | ±150 | 0.5 |
+
+实际配置为 `src/assets/robots/hunter180/assets/motors.json`，来源与配置校验和记录在
+同目录 `motor_parameters_source.json`。这组数值替代了最初按 Hunter130 惯量比缩放的估计值。
+可选的惯量估算工具只用于对照，必须输出到独立目录：
+
+```bash
+python scripts/prepare_hunter180_motors.py --output logs/hunter180_motor_estimates
+```
+
+Hunter180 训练数据全部来自本仓库 `src/assets/motions/hunter130/amp_baseline/`，
+通过带关节限位、接触和自碰撞约束的全身 IK 重新重定向到 Hunter180：
+17 段走跑、1 段恢复，共 9,992 帧、50 Hz，保留片段名称、帧数、采样率及根部朝向。
+按两款模型中立姿态的脚底到骨盆高度比缩放根部/足端轨迹，并按目标骨长适配手臂。
+Hunter180 肘部的固定朝向比 Hunter130 多约 90°，关节先验对此作了修正。
+当前 Hunter180 模型手臂终止于肘部壳体，没有腕/手连杆，因此末端目标采用实际壳体端点。
+目标位姿经 IK 求解后，重新计算全部关节速度、连杆位姿与速度，不直接复制 Hunter130 的身体状态。
+训练和回放保留跌倒恢复的延迟重置机制。
+
+来源模型、每个源文件与目标文件的校验和、求解参数和质量统计保存在
+`src/assets/motions/hunter180/amp_baseline/manifest.json`。
+训练直接使用随仓库提供的 NPZ。需要重新生成或验证时：
+
+```bash
+python scripts/retarget_hunter130_to_hunter180.py
+HUNTER180_TEST_GPU=1 python -m unittest discover -s tests -p test_hunter180.py -v
+```
+
+单片段调试须输出到独立目录，例如：
+
+```bash
+python scripts/retarget_hunter130_to_hunter180.py \
+  --clips walk_forward_loop_002__A022 --output logs/hunter180_retarget_preview
+```
+
+重定向是运动学处理；短训练检查用于验证训练流程，不能证明策略已收敛或动作在实机上可执行。
+
+### Hunter130
 
 在仓库根目录执行：
 
@@ -79,7 +161,8 @@ G1 模型、原始 CSV / NPZ 和本仓库的 G1 任务注册已从当前工作�
 可选的 SuperMimic/LAFAN 对比集 `src/assets/motions/hunter130/amp/` 仍被 Git 忽略，默认训练不使用它。
 日志、检查点、缓存和中间转换文件也不需要提交。
 
-仓库保留训练、策略回放、环境列表、补丁安装、基准动作重定向和视频检查六个脚本。
+仓库保留训练、策略回放、环境列表、补丁安装、Hunter130 基准动作重定向和视频检查，
+并提供 Hunter180 可选电机参数估算及 Hunter130 → Hunter180 动作重定向脚本。
 旧的独立 velocity 任务已移除，AMP 使用的速度与地形课程学习函数位于
 `src/tasks/amp_loco/mdp/curriculums.py`。
 
