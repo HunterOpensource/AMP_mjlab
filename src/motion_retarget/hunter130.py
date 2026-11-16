@@ -45,10 +45,12 @@ class RetargetCfg:
 
 
 class Retargeter:
-    def __init__(self, cfg: RetargetCfg | None = None, *, source_xml: Path):
+    def __init__(self, cfg: RetargetCfg | None = None, *, source_xml: Path,
+                 target_xml: Path = HUNTER_XML, source_palm_points=None,
+                 target_palm_points=None, joint_position_offsets=None):
         self.cfg = cfg or RetargetCfg()
         self.source = mujoco.MjModel.from_xml_path(str(source_xml))
-        self.model = mujoco.MjModel.from_xml_path(str(HUNTER_XML))
+        self.model = mujoco.MjModel.from_xml_path(str(target_xml))
         self.sd = mujoco.MjData(self.source)
         self.data = mujoco.MjData(self.model)
         self.joint_names = [self.model.joint(i).name for i in range(1, self.model.njnt)]
@@ -56,6 +58,9 @@ class Retargeter:
         self.source_joint_names = [self.source.joint(i).name for i in range(1, self.source.njnt)]
         self.source_body_names = [self.source.body(i).name for i in range(1, self.source.nbody)]
         self.source_joint_ids = [self.source_joint_names.index(n) for n in self.joint_names]
+        self.joint_position_offsets = np.array([
+            (joint_position_offsets or {}).get(name, 0.0) for name in self.joint_names
+        ])
         self.columns = np.r_[np.arange(3), np.arange(6, self.model.nv)]
         limits = self.model.jnt_range[1:]
         center = limits.mean(axis=1)
@@ -75,9 +80,18 @@ class Retargeter:
             for link, role in (('knee_link', 'knee'), ('elbow_link', 'elbow')):
                 self.points.append((self.model.body(f'{side}_{link}').id, np.zeros(3),
                                     self.source.body(f'{side}_{link}').id, np.zeros(3), role))
-            palm = self.source.site(f'{side}_palm')
-            self.points.append((self.model.body(f'{side}_wrist_roll_link').id,
-                                np.array(self.cfg.palm_offset), int(palm.bodyid[0]), palm.pos.copy(), 'palm'))
+            if source_palm_points is None:
+                palm = self.source.site(f'{side}_palm')
+                source_body, source_point = int(palm.bodyid[0]), palm.pos.copy()
+            else:
+                body, point = source_palm_points[side]
+                source_body, source_point = self.source.body(body).id, np.array(point)
+            if target_palm_points is None:
+                target_body, target_point = self.model.body(f'{side}_wrist_roll_link').id, np.array(self.cfg.palm_offset)
+            else:
+                body, point = target_palm_points[side]
+                target_body, target_point = self.model.body(body).id, np.array(point)
+            self.points.append((target_body, target_point, source_body, source_point, 'palm'))
         self.rest_source = np.array([self.point(self.sd, sb, sl) for _, _, sb, sl, _ in self.points])
         self.rest_target = np.array([self.point(self.data, tb, tl) for tb, tl, _, _, _ in self.points])
         self.rest_root_source = self.sd.xpos[1].copy()
@@ -263,7 +277,8 @@ class Retargeter:
         root, targets, rotations, contacts = self.prepare_targets(motion)
         frames = len(root)
         qpos = np.empty((frames, self.model.nq))
-        prior = motion['joint_pos'][:, self.source_joint_ids].astype(float).clip(self.lower, self.upper)
+        prior = (motion['joint_pos'][:, self.source_joint_ids].astype(float)
+                 + self.joint_position_offsets).clip(self.lower, self.upper)
         stats = {'nfev': [], 'position_error': [], 'min_collision_z': [], 'root_adjustment': []}
         previous = np.r_[root[0], prior[0]]
         fps = float(np.asarray(motion['fps']).item())
