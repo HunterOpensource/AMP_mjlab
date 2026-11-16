@@ -1,24 +1,10 @@
 """Self-contained AMP/PPO configuration for Hunter130's 25-joint policy."""
 
-from dataclasses import dataclass, field
+from mjlab.rl import RslRlModelCfg, RslRlPpoAlgorithmCfg
 
-from mjlab.rl import RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
+from src.tasks.amp_loco.rl.cfg import RslRlAmpRunnerCfg
 
 from .constants import AMP_ANCHOR_NAME, AMP_BODY_NAMES, MOTION_DIR
-
-
-@dataclass
-class RslRlAmpRunnerCfg(RslRlOnPolicyRunnerCfg):
-    """Extended runner config with AMP-specific parameters."""
-
-    amp_reward_coef: float = 0.1
-    amp_motion_files: str = ""
-    amp_num_preload_transitions: int = 200000
-    amp_task_reward_lerp: float = 0.75
-    amp_discr_hidden_dims: list[int] = field(default_factory=lambda: [1024, 512, 256])
-    min_normalized_std: list[float] = field(default_factory=lambda: [0.05] * 25)
-    amp_body_names: tuple = ()
-    amp_anchor_name: str = ""
 
 
 def hunter130_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
