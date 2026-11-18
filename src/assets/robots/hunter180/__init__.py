@@ -5,9 +5,10 @@ import math
 from pathlib import Path
 
 import mujoco
-from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
+
+from .velocity_limited_actuator import VelocityLimitedPositionActuatorCfg
 
 ASSET_ROOT = Path(__file__).resolve().parent
 HUNTER180_XML = ASSET_ROOT / "assets" / "hunter180.xml"
@@ -16,7 +17,7 @@ HUNTER180_XML = ASSET_ROOT / "assets" / "hunter180.xml"
 def load_motor_parameters() -> dict[str, dict[str, float]]:
     motors = json.loads((ASSET_ROOT / "assets" / "motors.json").read_text())
     for name, motor in motors.items():
-        for key in ("stiffness", "damping", "armature", "effort", "action_scale"):
+        for key in ("stiffness", "damping", "armature", "effort", "action_scale", "velocity_limit"):
             value = motor[key]
             valid = value >= 0 if key in ("damping", "armature") else value > 0
             if not math.isfinite(value) or not valid:
@@ -66,12 +67,13 @@ def get_hunter180_robot_cfg() -> EntityCfg:
         ),
         articulation=EntityArticulationInfoCfg(
             actuators=tuple(
-                BuiltinPositionActuatorCfg(
+                VelocityLimitedPositionActuatorCfg(
                     target_names_expr=(name,),
                     stiffness=motors[name]["stiffness"],
                     damping=motors[name]["damping"],
                     armature=motors[name]["armature"],
                     effort_limit=motors[name]["effort"],
+                    velocity_limit=motors[name]["velocity_limit"],
                 )
                 for name in names
             ),

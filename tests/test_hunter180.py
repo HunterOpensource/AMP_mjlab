@@ -10,6 +10,8 @@ import mjlab  # Initialize task plugins before importing their RL dependencies.
 import mujoco
 import numpy as np
 import torch
+from mjlab.actuator import BuiltinActuatorGroup
+from mjlab.actuator.actuator import ActuatorCmd
 from mjlab.entity import Entity
 
 from rsl_rl.utils.motion_loader import AMPLoader
@@ -56,6 +58,43 @@ class Hunter180Tests(unittest.TestCase):
             data.ctrl[:] = sign * 1e6
             mujoco.mj_forward(model, data)
             np.testing.assert_allclose(data.actuator_force, sign * np.array(effort_limits))
+
+    def test_velocity_limits_block_overspeed_drive_and_allow_braking(self):
+        entity = Entity(get_hunter180_robot_cfg())
+        model = entity.spec.compile()
+        data = mujoco.MjData(model)
+        motors = load_motor_parameters()
+        # Builtin batching bypasses compute(); the speed guard must use the custom path.
+        _, custom = BuiltinActuatorGroup.process(entity.actuators)
+        self.assertEqual(len(custom), 23)
+        def tensor(value):
+            return torch.tensor([[value]], dtype=torch.float64)
+        for i, actuator in enumerate(custom):
+            name = actuator.target_names[0]
+            motor = motors[name]
+            self.assertEqual(actuator.cfg.velocity_limit, motor["velocity_limit"])
+            joint = int(model.actuator_trnid[i, 0])
+            dof = int(model.jnt_dofadr[joint])
+            pos = float(data.qpos[model.jnt_qposadr[joint]])
+            for speed_ratio in (-1.1, -1.0, -0.99, 0.0, 0.99, 1.0, 1.1):
+                velocity = speed_ratio * motor["velocity_limit"]
+                for direction in (-1, 1):
+                    cmd = ActuatorCmd(
+                        position_target=tensor(pos + direction * 1e6),
+                        velocity_target=tensor(0), effort_target=tensor(0),
+                        pos=tensor(pos), vel=tensor(velocity),
+                    )
+                    control = actuator.compute(cmd).item()
+                    expected = direction * motor["effort"]
+                    if (speed_ratio >= 1.0 and direction > 0) or (speed_ratio <= -1.0 and direction < 0):
+                        expected = 0.0
+                    else:
+                        self.assertEqual(control, cmd.position_target.item())
+                    data.ctrl[i] = control
+                    data.qvel[dof] = velocity
+                    mujoco.mj_forward(model, data)
+                    self.assertAlmostEqual(data.actuator_force[i], expected, places=9,
+                                           msg=f"{name}, speed_ratio={speed_ratio}, direction={direction}")
 
     def test_registered_tasks_and_play_configs(self):
         import src.tasks
@@ -157,6 +196,25 @@ class Hunter180Tests(unittest.TestCase):
             try:
                 env.reset()
                 robot = env.scene["robot"]
+                motors = load_motor_parameters()
+                speed_limits = torch.tensor(
+                    [motors[name]["velocity_limit"] for name in robot.joint_names], device=env.device,
+                )
+                for sign in (-1, 1):
+                    positions = robot.data.default_joint_pos.clone()
+                    velocities = (sign * 1.1 * speed_limits).expand_as(positions).clone()
+                    robot.write_joint_state_to_sim(positions, velocities)
+                    robot.set_joint_position_target(positions + sign * 1e3)
+                    robot.write_data_to_sim()
+                    self.assertEqual(len(robot._custom_actuators), 23)
+                    for actuator in robot.actuators:
+                        cmd = actuator.get_command(robot.data)
+                        control = robot.data.data.ctrl[:, actuator.global_ctrl_ids]
+                        torque = actuator.cfg.stiffness * (control - cmd.pos) - actuator.cfg.damping * cmd.vel
+                        self.assertTrue((sign * torque <= 1e-3).all())
+                    # Protection limits drive commands; it must not overwrite physical velocity.
+                    torch.testing.assert_close(robot.data.joint_vel, velocities)
+                env.reset()
                 def batch(v):
                     return torch.as_tensor(v, device=env.device).float().expand(env.num_envs, -1).clone()
                 robot.write_root_link_pose_to_sim(torch.cat((batch(motion["body_pos_w"][0, 0]) + env.scene.env_origins,

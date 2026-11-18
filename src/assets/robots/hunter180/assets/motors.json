@@ -1,163 +1,186 @@
 {
   "left_hip_pitch_joint": {
-    "stiffness": 250.0,
-    "damping": 15.0,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 0.3
+    "effort": 350.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "left_hip_roll_joint": {
-    "stiffness": 400.0,
-    "damping": 30.0,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 0.3
+    "effort": 350.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "left_hip_yaw_joint": {
     "stiffness": 200.0,
-    "damping": 10.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 1.0
+    "effort": 350.0,
+    "action_scale": 1.0,
+    "velocity_limit": 25.0
   },
   "left_knee_joint": {
-    "stiffness": 400.0,
-    "damping": 30.0,
+    "stiffness": 250.0,
+    "damping": 5.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 0.3
+    "effort": 350.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "left_ankle_pitch_joint": {
-    "stiffness": 200.0,
-    "damping": 10.0,
+    "stiffness": 100.0,
+    "damping": 2.0,
     "armature": 0.1,
-    "effort": 200.0,
-    "action_scale": 0.7
+    "effort": 75.0,
+    "action_scale": 0.7,
+    "velocity_limit": 25.0
   },
   "left_ankle_roll_joint": {
-    "stiffness": 200.0,
-    "damping": 10.0,
+    "stiffness": 50.0,
+    "damping": 1.0,
     "armature": 0.1,
-    "effort": 100.0,
-    "action_scale": 0.3
+    "effort": 25.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "right_hip_pitch_joint": {
-    "stiffness": 250.0,
-    "damping": 15.0,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 0.3
+    "effort": 350.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "right_hip_roll_joint": {
-    "stiffness": 400.0,
-    "damping": 30.0,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 0.3
+    "effort": 350.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "right_hip_yaw_joint": {
     "stiffness": 200.0,
-    "damping": 10.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 1.0
+    "effort": 350.0,
+    "action_scale": 1.0,
+    "velocity_limit": 25.0
   },
   "right_knee_joint": {
-    "stiffness": 400.0,
-    "damping": 30.0,
+    "stiffness": 250.0,
+    "damping": 5.0,
     "armature": 0.1,
-    "effort": 400.0,
-    "action_scale": 0.3
+    "effort": 350.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "right_ankle_pitch_joint": {
-    "stiffness": 200.0,
-    "damping": 10.0,
+    "stiffness": 100.0,
+    "damping": 2.0,
     "armature": 0.1,
-    "effort": 200.0,
-    "action_scale": 0.7
+    "effort": 75.0,
+    "action_scale": 0.7,
+    "velocity_limit": 25.0
   },
   "right_ankle_roll_joint": {
-    "stiffness": 200.0,
-    "damping": 10.0,
+    "stiffness": 50.0,
+    "damping": 1.0,
     "armature": 0.1,
-    "effort": 100.0,
-    "action_scale": 0.3
+    "effort": 25.0,
+    "action_scale": 0.3,
+    "velocity_limit": 25.0
   },
   "waist_yaw_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
-    "effort": 300.0,
-    "action_scale": 1.0
+    "effort": 150.0,
+    "action_scale": 1.0,
+    "velocity_limit": 25.0
   },
   "waist_roll_joint": {
-    "stiffness": 150.0,
-    "damping": 7.5,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
     "effort": 150.0,
-    "action_scale": 1.0
+    "action_scale": 1.0,
+    "velocity_limit": 10.0
   },
   "waist_pitch_joint": {
-    "stiffness": 150.0,
-    "damping": 7.5,
+    "stiffness": 200.0,
+    "damping": 4.0,
     "armature": 0.1,
     "effort": 150.0,
-    "action_scale": 1.0
+    "action_scale": 1.0,
+    "velocity_limit": 15.0
   },
   "left_shoulder_pitch_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 90.0,
+    "damping": 1.5,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "left_shoulder_roll_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 60.0,
+    "damping": 1.0,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "left_shoulder_yaw_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 30.0,
+    "damping": 0.5,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "left_elbow_joint": {
-    "stiffness": 50.0,
-    "damping": 5.0,
+    "stiffness": 60.0,
+    "damping": 1.0,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "right_shoulder_pitch_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 90.0,
+    "damping": 1.5,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "right_shoulder_roll_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 60.0,
+    "damping": 1.0,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "right_shoulder_yaw_joint": {
-    "stiffness": 100.0,
-    "damping": 5.0,
+    "stiffness": 30.0,
+    "damping": 0.5,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   },
   "right_elbow_joint": {
-    "stiffness": 50.0,
-    "damping": 5.0,
+    "stiffness": 60.0,
+    "damping": 1.0,
     "armature": 0.1,
-    "effort": 150.0,
-    "action_scale": 0.5
+    "effort": 60.0,
+    "action_scale": 0.5,
+    "velocity_limit": 25.0
   }
 }
